@@ -1,0 +1,39 @@
+import pandas as pd
+import time
+import os
+from lxml import objectify
+file_names=[]
+for file in os.listdir(r'H:\Python Programme\myPython\司法改革\刑庭'):
+    file_names.append(file)
+path=r'H:\Python Programme\myPython\司法改革\刑庭\%s'
+total_dataSet=[]
+#to read many xml files under a folder
+for filename in file_names:
+    parsed=objectify.parse(open(path %filename,encoding='utf-8'))
+    root=parsed.getroot()
+    columns = []
+    #getchildren() will get a list
+    for i in range(0,len(root.Worksheet.Table.Row[3].getchildren())):
+        #text always get a string, even if a number
+        #since the columns' names in xml files are in the third row 
+        columns.append(root.Worksheet.Table.Row[3].Cell[i].Data.text)
+    data={}
+    for sub_column in columns:
+        col_data = {}
+        for j in range(4,len(root.Worksheet.Table.Row)):
+            #pyval can distinguish string from number
+            cell_data=root.Worksheet.Table.Row[j].Cell[columns.index(sub_column)].Data.pyval
+            col_data.setdefault(sub_column, []).append(cell_data)
+        #use update can append or merge dict
+        data.update(col_data)
+    dataSet=pd.DataFrame(dict(data),columns=columns)
+    room=root.Worksheet.Table.Row[0].Cell[0].Data.text
+    date=root.Worksheet.Table.Row[2].Cell[0].Data.text
+    date=date[date.find('2'):date.find('至')]
+    # '%Y' should be upper
+    date=time.strptime(date,'%Y-%m-%d')
+    dataSet['庭室']=room[:room.find('庭')+1]
+    dataSet['年份']=date.tm_year
+    total_dataSet.append(dataSet)
+total_dataSet=pd.concat(total_dataSet,ignore_index=True)
+print(total_dataSet)
